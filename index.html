@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Audio Silence Dial</title>
+    <title>Audio Silence Dials</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
@@ -24,14 +24,33 @@
         border-radius: 0.5rem;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
+      .dials-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2rem;
+        justify-content: center;
+      }
+      .dial-container {
+        transform: rotate(-90deg);
+        transform-origin: center center;
+      }
+      .value-container {
+        transform: rotate(90deg);
+        transform-origin: center center;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%) rotate(90deg);
+        width: 100%;
+        text-align: center;
+      }
     </style>
   </head>
   <body>
     <div id="root"></div>
 
     <script type="text/babel">
-      const AudioSilenceDial = () => {
-        const THRESHOLD = 35;
+      const AudioSilenceDial = ({ sensitivity, messages, label }) => {
         const [silenceTime, setSilenceTime] = React.useState(0);
         const [isListening, setIsListening] = React.useState(false);
         const [error, setError] = React.useState("");
@@ -82,8 +101,7 @@
               dataArray.reduce((a, b) => a + b) / dataArray.length;
 
             const now = Date.now();
-            if (average > THRESHOLD) {
-              // Threshold for sound detection
+            if (average > sensitivity) {
               lastSoundTimeRef.current = now;
               setSilenceTime(0);
             } else {
@@ -97,77 +115,137 @@
           checkAudio();
         };
 
-        const rotation = (silenceTime / 10) * 180;
+        const rotation = (silenceTime / 10) * 180 - 90;
+
+        // Calculate color based on silence time (green to red gradient)
+        const getColor = (time) => {
+          const hue = 120 * (1 - time / 10); // 120 is green, 0 is red
+          return `hsl(${hue}, 100%, 45%)`;
+        };
+
+        // Get current message based on silence time
+        const getCurrentMessage = () => {
+          const secondsPassed = Math.floor(silenceTime);
+          return messages[secondsPassed] || messages[messages.length - 1];
+        };
 
         return (
           <div className="container">
+            <h3 style={{ textAlign: "center", margin: "0 0 1rem" }}>
+              Sensitivity: {sensitivity}
+            </h3>
             <div
-              style={{
-                position: "relative",
-                width: "256px",
-                height: "128px",
-                marginBottom: "1rem",
-              }}
+              style={{ position: "relative", width: "256px", height: "256px" }}
             >
               <div
+                className="dial-container"
                 style={{
                   position: "absolute",
                   width: "100%",
                   height: "100%",
-                  backgroundColor: "white",
-                  borderRadius: "128px 128px 0 0",
-                  border: "2px solid #d1d5db",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
                 }}
               >
                 <div
                   style={{
-                    position: "absolute",
-                    width: "4px",
-                    height: "96px",
-                    backgroundColor: "#ef4444",
-                    borderRadius: "4px",
-                    left: "50%",
-                    bottom: "0",
-                    transform: `translateX(-50%) rotate(${rotation}deg)`,
-                    transformOrigin: "bottom center",
-                    transition: "transform 0.1s ease-out",
+                    position: "relative",
+                    width: "100%",
+                    height: "50%",
+                    backgroundColor: "white",
+                    borderRadius: "128px 128px 0 0",
+                    border: "2px solid #d1d5db",
+                    overflow: "hidden",
                   }}
-                />
-                {[...Array(11)].map((_, i) => (
+                >
                   <div
-                    key={i}
                     style={{
                       position: "absolute",
                       width: "4px",
-                      height: "16px",
-                      backgroundColor: "#9ca3af",
+                      height: "96px",
+                      backgroundColor: getColor(silenceTime),
+                      borderRadius: "4px",
                       left: "50%",
                       bottom: "0",
-                      transform: `translateX(-50%) rotate(${(i / 10) * 180}deg)`,
+                      transform: `translateX(-50%) rotate(${rotation}deg)`,
                       transformOrigin: "bottom center",
+                      transition:
+                        "transform 0.1s ease-out, background-color 0.3s ease",
                     }}
                   />
-                ))}
+                  {[...Array(11)].map((_, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        position: "absolute",
+                        width: "4px",
+                        height: "16px",
+                        backgroundColor: "#9ca3af",
+                        left: "50%",
+                        bottom: "0",
+                        transform: `translateX(-50%) rotate(${(i / 10) * 180 - 90}deg)`,
+                        transformOrigin: "bottom center",
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: "24px", fontWeight: "bold" }}>
-                {silenceTime.toFixed(1)}s
-              </div>
-              <div
-                style={{ fontSize: "14px", color: "#4b5563", marginTop: "8px" }}
-              >
-                {isListening
-                  ? "Listening for audio..."
-                  : error || "Starting..."}
+              <div className="value-container">
+                <div
+                  style={{
+                    fontSize: "24px",
+                    fontWeight: "bold",
+                    color: getColor(silenceTime),
+                  }}
+                >
+                  {silenceTime.toFixed(1)}s
+                </div>
+                <div
+                  style={{
+                    fontSize: "14px",
+                    color: "#4b5563",
+                    marginTop: "8px",
+                    minHeight: "3em",
+                    textAlign: "center",
+                  }}
+                >
+                  {isListening ? getCurrentMessage() : error || "Starting..."}
+                </div>
               </div>
             </div>
           </div>
         );
       };
 
-      ReactDOM.render(<AudioSilenceDial />, document.getElementById("root"));
+      // Main App component to render multiple dials
+      const App = () => {
+        const messages = [
+          "Listening...",
+          "Ok... I'm listening",
+          "Getting silence...",
+          "Quite quiet...",
+          "Very quiet now...",
+          "Is anyone there?",
+          "Hello...?",
+          "This is awkward...",
+          "Should I say something?",
+          "Really awkward now...",
+          "Maximum awkwardness!",
+        ];
+
+        return (
+          <div className="dials-container">
+            <AudioSilenceDial
+              sensitivity={30}
+              messages={messages}
+              label="Low Sensitivity"
+            />
+          </div>
+        );
+      };
+
+      ReactDOM.render(<App />, document.getElementById("root"));
     </script>
   </body>
 </html>
