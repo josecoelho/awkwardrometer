@@ -2,6 +2,8 @@
 
 Back to the AI generated `README.md`:
 
+> **Note**: This README is a perfect example of how to turn "I made a simple audio gauge that measures awkward silence" into "I BUILT A REVOLUTIONARY SILENCE MONITORING SYSTEM!" The power of technical writing at its finest - where every basic feature sounds like it could solve world hunger. Please read with a grain of salt and enjoy our enthusiasm! 😄
+
 # Awkwardrometer
 
 A web-based tool that visualizes the growing awkwardness of silence using a single gauge. Perfect for those moments when you're not sure if you should say something or just let the silence consume your soul.
