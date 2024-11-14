@@ -7,6 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gauge.js/1.3.7/gauge.min.js"></script>
     <style>
       body {
         display: flex;
@@ -23,26 +24,20 @@
         background: white;
         border-radius: 0.5rem;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin: 1rem;
+        text-align: center;
       }
       .dials-container {
         display: flex;
+        flex-direction: column;
         flex-wrap: wrap;
         gap: 2rem;
         justify-content: center;
+        padding: 2rem;
       }
-      .dial-container {
-        transform: rotate(-90deg);
-        transform-origin: center center;
-      }
-      .value-container {
-        transform: rotate(90deg);
-        transform-origin: center center;
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%) rotate(90deg);
-        width: 100%;
-        text-align: center;
+      .message {
+        min-height: 3em;
+        margin-top: 1rem;
       }
     </style>
   </head>
@@ -54,12 +49,54 @@
         const [silenceTime, setSilenceTime] = React.useState(0);
         const [isListening, setIsListening] = React.useState(false);
         const [error, setError] = React.useState("");
+        const gaugeRef = React.useRef(null);
+        const canvasRef = React.useRef(null);
         const audioContextRef = React.useRef(null);
         const analyserRef = React.useRef(null);
         const animationFrameRef = React.useRef(null);
         const lastSoundTimeRef = React.useRef(Date.now());
 
         React.useEffect(() => {
+          // Initialize Gauge
+          const gauge = new Gauge(canvasRef.current).setOptions({
+            angle: -0.25,
+            lineWidth: 0.2,
+            radiusScale: 0.9,
+            pointer: {
+              length: 0.6,
+              strokeWidth: 0.035,
+              color: "#000000",
+            },
+            limitMax: false,
+            limitMin: false,
+            colorStart: "#4CAF50", // Green
+            colorStop: "#FF5252", // Red
+            strokeColor: "#E0E0E0",
+            generateGradient: true,
+            highDpiSupport: true,
+            staticLabels: {
+              font: "12px sans-serif",
+              labels: [0, 2, 4, 6, 8, 10],
+              color: "#000000",
+              fractionDigits: 0,
+            },
+            staticZones: [
+              { strokeStyle: "#4CAF50", min: 0, max: 2 }, // Green
+              { strokeStyle: "#8BC34A", min: 2, max: 4 }, // Light Green
+              { strokeStyle: "#FFC107", min: 4, max: 6 }, // Yellow
+              { strokeStyle: "#FF9800", min: 6, max: 8 }, // Orange
+              { strokeStyle: "#FF5252", min: 8, max: 10 }, // Red
+            ],
+          });
+
+          gauge.maxValue = 10;
+          gauge.setMinValue(0);
+          gauge.animationSpeed = 32;
+          gauge.set(0);
+
+          gaugeRef.current = gauge;
+
+          // Setup Audio
           const setupAudio = async () => {
             try {
               const stream = await navigator.mediaDevices.getUserMedia({
@@ -80,6 +117,7 @@
           };
 
           setupAudio();
+
           return () => {
             if (animationFrameRef.current) {
               cancelAnimationFrame(animationFrameRef.current);
@@ -104,9 +142,12 @@
             if (average > sensitivity) {
               lastSoundTimeRef.current = now;
               setSilenceTime(0);
+              gaugeRef.current.set(0);
             } else {
               const silenceDuration = (now - lastSoundTimeRef.current) / 1000;
-              setSilenceTime(Math.min(silenceDuration, 10));
+              const newSilenceTime = Math.min(silenceDuration, 10);
+              setSilenceTime(newSilenceTime);
+              gaugeRef.current.set(newSilenceTime);
             }
 
             animationFrameRef.current = requestAnimationFrame(checkAudio);
@@ -115,15 +156,6 @@
           checkAudio();
         };
 
-        const rotation = (silenceTime / 10) * 180 - 90;
-
-        // Calculate color based on silence time (green to red gradient)
-        const getColor = (time) => {
-          const hue = 120 * (1 - time / 10); // 120 is green, 0 is red
-          return `hsl(${hue}, 100%, 45%)`;
-        };
-
-        // Get current message based on silence time
         const getCurrentMessage = () => {
           const secondsPassed = Math.floor(silenceTime);
           return messages[secondsPassed] || messages[messages.length - 1];
@@ -131,94 +163,15 @@
 
         return (
           <div className="container">
-            <h3 style={{ textAlign: "center", margin: "0 0 1rem" }}>
-              Sensitivity: {sensitivity}
-            </h3>
-            <div
-              style={{ position: "relative", width: "256px", height: "256px" }}
-            >
-              <div
-                className="dial-container"
-                style={{
-                  position: "absolute",
-                  width: "100%",
-                  height: "100%",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <div
-                  style={{
-                    position: "relative",
-                    width: "100%",
-                    height: "50%",
-                    backgroundColor: "white",
-                    borderRadius: "128px 128px 0 0",
-                    border: "2px solid #d1d5db",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      width: "4px",
-                      height: "96px",
-                      backgroundColor: getColor(silenceTime),
-                      borderRadius: "4px",
-                      left: "50%",
-                      bottom: "0",
-                      transform: `translateX(-50%) rotate(${rotation}deg)`,
-                      transformOrigin: "bottom center",
-                      transition:
-                        "transform 0.1s ease-out, background-color 0.3s ease",
-                    }}
-                  />
-                  {[...Array(11)].map((_, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        position: "absolute",
-                        width: "4px",
-                        height: "16px",
-                        backgroundColor: "#9ca3af",
-                        left: "50%",
-                        bottom: "0",
-                        transform: `translateX(-50%) rotate(${(i / 10) * 180 - 90}deg)`,
-                        transformOrigin: "bottom center",
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="value-container">
-                <div
-                  style={{
-                    fontSize: "24px",
-                    fontWeight: "bold",
-                    color: getColor(silenceTime),
-                  }}
-                >
-                  {silenceTime.toFixed(1)}s
-                </div>
-                <div
-                  style={{
-                    fontSize: "14px",
-                    color: "#4b5563",
-                    marginTop: "8px",
-                    minHeight: "3em",
-                    textAlign: "center",
-                  }}
-                >
-                  {isListening ? getCurrentMessage() : error || "Starting..."}
-                </div>
-              </div>
+            <h3>Sensitivity: {sensitivity}</h3>
+            <canvas ref={canvasRef} width="200" height="200"></canvas>
+            <div className="message">
+              {isListening ? getCurrentMessage() : error || "Starting..."}
             </div>
           </div>
         );
       };
 
-      // Main App component to render multiple dials
       const App = () => {
         const messages = [
           "Listening...",
@@ -236,10 +189,11 @@
 
         return (
           <div className="dials-container">
+            <h1>Awkwardrometer</h1>
             <AudioSilenceDial
-              sensitivity={30}
+              sensitivity={35}
               messages={messages}
-              label="Low Sensitivity"
+              label="High Sensitivity"
             />
           </div>
         );
