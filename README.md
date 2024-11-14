@@ -12,6 +12,22 @@ A web-based tool that visualizes the growing awkwardness of silence using a sing
 
 This project was built entirely through prompts with Claude (Anthropic's AI assistant). It uses browser's audio API to detect sound levels and displays how painfully awkward the silence is becoming using a professional gauge visualization.
 
+## Live Demo
+
+Check out the Awkwardrometer in action: https://josecoelho.github.io/awkwardrometer
+
+## Deployment
+
+This project is hosted using GitHub Pages. To deploy your own version:
+
+1. Fork this repository from https://github.com/josecoelho/awkwardrometer
+2. Ensure the main HTML file is named `index.html`
+3. Go to your repository's Settings
+4. Navigate to Pages section
+5. Select "Deploy from a branch" under Source
+6. Choose "main" branch and "/ (root)"
+7. Click Save and wait for deployment
+8. Access your site at `https://[your-username].github.io/awkwardrometer`
 ## Features
 
 - Single sensitivity level calibrated for optimal awkwardness detection
