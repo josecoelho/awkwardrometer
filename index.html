@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Audio Silence Dial</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        background-color: #f3f4f6;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+      }
+      .container {
+        padding: 2rem;
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const AudioSilenceDial = () => {
+        const THRESHOLD = 35;
+        const [silenceTime, setSilenceTime] = React.useState(0);
+        const [isListening, setIsListening] = React.useState(false);
+        const [error, setError] = React.useState("");
+        const audioContextRef = React.useRef(null);
+        const analyserRef = React.useRef(null);
+        const animationFrameRef = React.useRef(null);
+        const lastSoundTimeRef = React.useRef(Date.now());
+
+        React.useEffect(() => {
+          const setupAudio = async () => {
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+              });
+              audioContextRef.current = new (window.AudioContext ||
+                window.webkitAudioContext)();
+              const source =
+                audioContextRef.current.createMediaStreamSource(stream);
+              analyserRef.current = audioContextRef.current.createAnalyser();
+              analyserRef.current.fftSize = 2048;
+              source.connect(analyserRef.current);
+              setIsListening(true);
+              startMonitoring();
+            } catch (err) {
+              setError("Microphone access denied or not available");
+            }
+          };
+
+          setupAudio();
+          return () => {
+            if (animationFrameRef.current) {
+              cancelAnimationFrame(animationFrameRef.current);
+            }
+            if (audioContextRef.current) {
+              audioContextRef.current.close();
+            }
+          };
+        }, []);
+
+        const startMonitoring = () => {
+          const dataArray = new Uint8Array(
+            analyserRef.current.frequencyBinCount,
+          );
+
+          const checkAudio = () => {
+            analyserRef.current.getByteFrequencyData(dataArray);
+            const average =
+              dataArray.reduce((a, b) => a + b) / dataArray.length;
+
+            const now = Date.now();
+            if (average > THRESHOLD) {
+              // Threshold for sound detection
+              lastSoundTimeRef.current = now;
+              setSilenceTime(0);
+            } else {
+              const silenceDuration = (now - lastSoundTimeRef.current) / 1000;
+              setSilenceTime(Math.min(silenceDuration, 10));
+            }
+
+            animationFrameRef.current = requestAnimationFrame(checkAudio);
+          };
+
+          checkAudio();
+        };
+
+        const rotation = (silenceTime / 10) * 180;
+
+        return (
+          <div className="container">
+            <div
+              style={{
+                position: "relative",
+                width: "256px",
+                height: "128px",
+                marginBottom: "1rem",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  width: "100%",
+                  height: "100%",
+                  backgroundColor: "white",
+                  borderRadius: "128px 128px 0 0",
+                  border: "2px solid #d1d5db",
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    width: "4px",
+                    height: "96px",
+                    backgroundColor: "#ef4444",
+                    borderRadius: "4px",
+                    left: "50%",
+                    bottom: "0",
+                    transform: `translateX(-50%) rotate(${rotation}deg)`,
+                    transformOrigin: "bottom center",
+                    transition: "transform 0.1s ease-out",
+                  }}
+                />
+                {[...Array(11)].map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      position: "absolute",
+                      width: "4px",
+                      height: "16px",
+                      backgroundColor: "#9ca3af",
+                      left: "50%",
+                      bottom: "0",
+                      transform: `translateX(-50%) rotate(${(i / 10) * 180}deg)`,
+                      transformOrigin: "bottom center",
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "24px", fontWeight: "bold" }}>
+                {silenceTime.toFixed(1)}s
+              </div>
+              <div
+                style={{ fontSize: "14px", color: "#4b5563", marginTop: "8px" }}
+              >
+                {isListening
+                  ? "Listening for audio..."
+                  : error || "Starting..."}
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      ReactDOM.render(<AudioSilenceDial />, document.getElementById("root"));
+    </script>
+  </body>
+</html>
